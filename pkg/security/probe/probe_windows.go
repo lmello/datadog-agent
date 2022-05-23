@@ -230,7 +230,6 @@ func (p *Probe) FlushDiscarders() error {
 	return nil
 }
 
-// RefreshUserCache refreshes the user cache
-func (p *Probe) RefreshUserCache(containerID string) error {
-	return nil
+// HandleActions executes the actions of a triggered rule
+func (p *Probe) HandleActions(rule *rules.Rule, event eval.Event) {
 }
