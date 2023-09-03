@@ -5,7 +5,7 @@
 
 //go:build windows
 
-package main
+package command
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-agent/cmd/process-agent/command"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/messagestrings"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/servicemain"
@@ -25,12 +24,13 @@ import (
 
 const (
 	// ServiceName is the service name used for the process-agent
-	ServiceName  = "datadog-process-agent"
-	useWinParams = true
+	ServiceName = "datadog-process-agent"
+	// UseWinParams is set to true when ran on Windows
+	UseWinParams = true
 )
 
 type service struct {
-	globalParams *command.GlobalParams
+	globalParams *GlobalParams
 }
 
 func (s *service) Name() string {
@@ -55,7 +55,8 @@ func (s *service) Run(ctx context.Context) error {
 	return err
 }
 
-func rootCmdRun(globalParams *command.GlobalParams) {
+// RootCmdRun is the main function to run the process agent
+func RootCmdRun(globalParams *GlobalParams) {
 	var err error
 
 	if !globalParams.WinParams.Foreground {
