@@ -67,6 +67,6 @@ func main() {
 	defer log.Flush()
 
 	rootCmd := command.MakeCommand(subcommands.SysprobeSubcommands())
-	setDefaultCommandIfNonePresent(rootCmd)
+	command.SetDefaultCommandIfNonePresent(rootCmd)
 	os.Exit(runcmd.Run(rootCmd))
 }
