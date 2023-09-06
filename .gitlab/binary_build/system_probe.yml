@@ -42,12 +42,19 @@
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/co-re/tracer.o $S3_ARTIFACTS_URI/tracer-co-re.o.$ARCH
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/co-re/tracer-debug.o $S3_ARTIFACTS_URI/tracer-debug-co-re.o.$ARCH
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/tracer.c $S3_ARTIFACTS_URI/tracer.c.$ARCH
+    - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/runtime/tracer.go $S3_ARTIFACTS_URI/tracer.go
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/usm.c $S3_ARTIFACTS_URI/usm.c.$ARCH
+    - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/runtime/usm.go $S3_ARTIFACTS_URI/usm.go
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/shared-libraries.c $S3_ARTIFACTS_URI/shared-libraries.c.$ARCH
+    - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/runtime/shared-libraries.go $S3_ARTIFACTS_URI/shared-libraries.go
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/runtime-security.c $S3_ARTIFACTS_URI/runtime-security.c.$ARCH
+    - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/runtime/runtime-security.go $S3_ARTIFACTS_URI/runtime-security.go
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/conntrack.c $S3_ARTIFACTS_URI/conntrack.c.$ARCH
+    - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/runtime/conntrack.go $S3_ARTIFACTS_URI/conntrack.go
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/oom-kill.c $S3_ARTIFACTS_URI/oom-kill.c.$ARCH
+    - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/runtime/oom-kill.go $S3_ARTIFACTS_URI/oom-kill.go
     - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/tcp-queue-length.c $S3_ARTIFACTS_URI/tcp-queue-length.c.$ARCH
+    - $S3_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/runtime/tcp-queue-length.go $S3_ARTIFACTS_URI/tcp-queue-length.go
   variables:
     KUBERNETES_MEMORY_REQUEST: "6Gi"
     KUBERNETES_MEMORY_LIMIT: "12Gi"
