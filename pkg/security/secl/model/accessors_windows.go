@@ -10,9 +10,10 @@
 package model
 
 import (
-	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"net"
 	"reflect"
+
+	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 )
 
 // Aliases used to avoid compilation error in case of unused imported package
