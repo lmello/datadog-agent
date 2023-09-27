@@ -60,6 +60,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/otelcol"
 	otelcollector "github.com/DataDog/datadog-agent/comp/otelcol/collector"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
+	"github.com/DataDog/datadog-agent/comp/snmptraps"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/providers"
@@ -73,7 +74,6 @@ import (
 	pkgMetadata "github.com/DataDog/datadog-agent/pkg/metadata"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps"
 	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	pkgTelemetry "github.com/DataDog/datadog-agent/pkg/telemetry"
@@ -306,6 +306,7 @@ func getSharedFxOption() fx.Option {
 		}),
 		ndmtmp.Bundle,
 		netflow.Bundle,
+		snmptraps.Bundle,
 	)
 }
 
@@ -491,14 +492,6 @@ func startAgent(
 		pkgTelemetry.RegisterStatsSender(sender)
 	}
 
-	// Start SNMP trap server
-	if traps.IsEnabled(pkgconfig.Datadog) {
-		err = traps.StartServer(hostnameDetected, demux, pkgconfig.Datadog, log)
-		if err != nil {
-			log.Errorf("Failed to start snmp-traps server: %s", err)
-		}
-	}
-
 	// Detect Cloud Provider
 	go cloudproviders.DetectCloudProvider(context.Background())
 
@@ -578,7 +571,6 @@ func stopAgent(cliParams *cliParams, server dogstatsdServer.Component) {
 	if common.MetadataScheduler != nil {
 		common.MetadataScheduler.Stop()
 	}
-	traps.StopServer()
 	api.StopServer()
 	clcrunnerapi.StopCLCRunnerServer()
 	jmx.StopJmxfetch()

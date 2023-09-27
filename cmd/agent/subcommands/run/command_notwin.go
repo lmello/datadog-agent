@@ -29,6 +29,7 @@ import (
 	netflowServer "github.com/DataDog/datadog-agent/comp/netflow/server"
 	otelcollector "github.com/DataDog/datadog-agent/comp/otelcol/collector"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
+	trapserver "github.com/DataDog/datadog-agent/comp/snmptraps/server"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
 	"github.com/DataDog/datadog-agent/pkg/util"
@@ -54,6 +55,7 @@ func run(log log.Component,
 	otelcollector otelcollector.Component,
 	hostMetadata host.Component,
 	_ netflowServer.Component,
+	_ trapserver.Component,
 ) error {
 	// commonRun provides a mechanism to have the shared run function not require the unused components
 	// (i.e. here `_ netflowServer`).  The run function can have different parameters on different platforms

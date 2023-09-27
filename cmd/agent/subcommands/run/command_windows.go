@@ -21,6 +21,7 @@ import (
 
 	// checks implemented as components
 	"github.com/DataDog/datadog-agent/comp/checks/agentcrashdetect"
+	trapserver "github.com/DataDog/datadog-agent/comp/snmptraps/server"
 
 	// core components
 	"github.com/DataDog/datadog-agent/comp/core"
@@ -77,6 +78,7 @@ func StartAgentWithDefaults(ctxChan <-chan context.Context) (<-chan error, error
 			otelcollector otelcollector.Component,
 			hostMetadata host.Component,
 			_ netflowServer.Component,
+			_ trapserver.Component,
 			_ agentcrashdetect.Component,
 			_ comptraceconfig.Component,
 		) error {

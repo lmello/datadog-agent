@@ -17,6 +17,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
+	traps "github.com/DataDog/datadog-agent/comp/snmptraps/status"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/custommetrics"
@@ -29,7 +30,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	logsStatus "github.com/DataDog/datadog-agent/pkg/logs/status"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
