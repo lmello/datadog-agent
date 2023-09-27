@@ -3,7 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package formatter provides tools for formatting SNMP traps.
 package formatter
 
 import (
@@ -11,13 +10,12 @@ import (
 	"fmt"
 	"strings"
 
-	oidresolver "github.com/DataDog/datadog-agent/pkg/snmp/traps/oid_resolver"
-	"github.com/DataDog/datadog-agent/pkg/snmp/traps/packet"
-
 	"github.com/gosnmp/gosnmp"
 
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/ndmtmp/sender"
+	"github.com/DataDog/datadog-agent/comp/snmptraps/oidresolver"
+	"github.com/DataDog/datadog-agent/comp/snmptraps/packet"
 )
 
 const (
@@ -32,7 +30,7 @@ type Formatter interface {
 
 // JSONFormatter is a Formatter implementation that transforms Traps into JSON
 type JSONFormatter struct {
-	oidResolver oidresolver.OIDResolver
+	oidResolver oidresolver.Component
 	aggregator  sender.Component
 	logger      log.Component
 }
@@ -53,10 +51,7 @@ const (
 )
 
 // NewJSONFormatter creates a new JSONFormatter instance with an optional OIDResolver variable.
-func NewJSONFormatter(oidResolver oidresolver.OIDResolver, aggregator sender.Component, logger log.Component) (JSONFormatter, error) {
-	if oidResolver == nil {
-		return JSONFormatter{}, fmt.Errorf("NewJSONFormatter called with a nil OIDResolver")
-	}
+func NewJSONFormatter(oidResolver oidresolver.Component, aggregator sender.Component, logger log.Component) (Component, error) {
 	return JSONFormatter{oidResolver, aggregator, logger}, nil
 }
 
