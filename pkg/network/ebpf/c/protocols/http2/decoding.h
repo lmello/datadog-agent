@@ -470,19 +470,8 @@ int uprobe__http2_tls_entry(struct pt_regs *ctx) {
             log_debug("[grpctls] should_skip true");
             return 0;
         }
-        // A single packet can contain multiple HTTP/2 frames, due to instruction limitations we have divided the
-        // processing into multiple tail calls, where each tail call process a single frame. We must have context when
-        // we are processing the frames, for example, to know how many bytes have we read in the packet, or it we reached
-        // to the maximum number of frames we can process. For that we are checking if the iteration context already exists.
-        // If not, creating a new one to be used for further processing
-        http2_tls_tail_call_state_t iteration_value = {}; // FIXME
-        bpf_memset(iteration_value.frames_array, 0, HTTP2_MAX_FRAMES_ITERATIONS * sizeof(http2_frame_with_offset));
 
-        // We have couple of interesting headers, launching tail calls to handle them.
-        if (bpf_map_update_elem(&http2_tls_iterations, &zero, &iteration_value, BPF_ANY) >= 0) {
-            // We managed to cache the iteration_value in the http2_iterations map.
-            bpf_tail_call_compat(ctx, &tls_process_progs, TLS_HTTP2_FRAMES_PARSER);
-        }
+        bpf_tail_call_compat(ctx, &tls_process_progs, TLS_HTTP2_FRAMES_PARSER);
         return 0;
     }
 
@@ -498,8 +487,9 @@ int uprobe__http2_tls_entry(struct pt_regs *ctx) {
 
     http2_tls_state_t new_state;
     bpf_memset(&new_state, 0, sizeof(new_state));
-    new_state.should_skip = !relevant; // FIXME
-    new_state.stream_id = 0; // FIXME
+    new_state.should_skip = !relevant;
+    new_state.stream_id = header.stream_id;
+    new_state.frame_flags = header.flags;
 
     key.length = header.length;
 
@@ -519,21 +509,16 @@ int uprobe__http2_tls_frames_parser(struct pt_regs *ctx) {
         return 0;
     }
 
-    // A single packet can contain multiple HTTP/2 frames, due to instruction limitations we have divided the
-    // processing into multiple tail calls, where each tail call process a single frame. We must have context when
-    // we are processing the frames, for example, to know how many bytes have we read in the packet, or it we reached
-    // to the maximum number of frames we can process. For that we are checking if the iteration context already exists.
-    // If not, creating a new one to be used for further processing
-    http2_tail_call_state_t *tail_call_state = bpf_map_lookup_elem(&http2_tls_iterations, &zero);
-    if (tail_call_state == NULL) {
-        // We didn't find the cached context, aborting.
-        return 0;
-    }
+    http2_tls_state_key_t key;
+    bpf_memset(&key, 0, sizeof(key));
 
-    if (tail_call_state->iteration >= HTTP2_MAX_FRAMES_ITERATIONS || tail_call_state->iteration >= tail_call_state->frames_count) {
+    key.tup = info->tup;
+    key.length = info->len;
+    http2_tls_state_t *state = bpf_map_lookup_elem(&http2_tls_states, &key);
+    if (!state) {
+        log_debug("[grpctls] could not get state from frame parser");
         goto exit;
     }
-    http2_frame_with_offset current_frame = tail_call_state->frames_array[tail_call_state->iteration];
 
     http2_ctx_t *http2_ctx = bpf_map_lookup_elem(&http2_ctx_heap, &zero);
     if (http2_ctx == NULL) {
@@ -545,7 +530,7 @@ int uprobe__http2_tls_frames_parser(struct pt_regs *ctx) {
     http2_ctx->http2_stream_key.tup = info->tup;
     normalize_tuple(&http2_ctx->http2_stream_key.tup);
     http2_ctx->dynamic_index.tup = info->tup;
-    info->off = current_frame.offset;
+    http2_ctx->http2_stream_key.stream_id = state->stream_id;
 
     log_debug("[http2_tls_frames_parser] conn tuple: saddr_h=%lu saddr_l=%lu",
         http2_ctx->http2_stream_key.tup.saddr_h,
@@ -557,19 +542,12 @@ int uprobe__http2_tls_frames_parser(struct pt_regs *ctx) {
         http2_ctx->http2_stream_key.tup.sport,
         http2_ctx->http2_stream_key.tup.dport);
 
-    parse_frame_tls(info, http2_ctx, &current_frame.frame);
+    parse_frame_tls(info, http2_ctx, state->frame_flags);
     if (info->off >= info->len) {
         goto exit;
     }
 
-    /* // update the tail calls state when the http2 decoding part was completed successfully. */
-    tail_call_state->iteration += 1;
-    if (tail_call_state->iteration < HTTP2_MAX_FRAMES_ITERATIONS && tail_call_state->iteration < tail_call_state->frames_count) {
-        bpf_tail_call_compat(ctx, &tls_process_progs, TLS_HTTP2_FRAMES_PARSER);
-    }
-
 exit:
-
     return 0;
 }
 
