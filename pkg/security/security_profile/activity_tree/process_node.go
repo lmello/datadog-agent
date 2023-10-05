@@ -18,6 +18,7 @@ import (
 	sprocess "github.com/DataDog/datadog-agent/pkg/security/resolvers/process"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
+	"github.com/antzucaro/matchr"
 )
 
 // ProcessNodeParent is an interface used to identify the parent of a process node
@@ -251,12 +252,23 @@ func (pn *ProcessNode) findDNSNode(DNSName string, DNSMatchMaxDepth int, DNSType
 		return ok
 	}
 
-	toSearch := dnsFilterSubdomains(DNSName, DNSMatchMaxDepth)
+	prefixToSearch, suffixToSearch := dnsSplit(DNSName, DNSMatchMaxDepth)
 	for name, dnsNode := range pn.DNSNames {
-		if dnsFilterSubdomains(name, DNSMatchMaxDepth) == toSearch {
+		prefix, suffix := dnsSplit(name, DNSMatchMaxDepth)
+		if prefix == prefixToSearch {
 			for _, req := range dnsNode.Requests {
 				if req.Type == DNSType {
 					return true
+				}
+			}
+		}
+
+		if suffix == suffixToSearch {
+			if matchr.Jaro(prefixToSearch, prefix) > 0.75 {
+				for _, req := range dnsNode.Requests {
+					if req.Type == DNSType {
+						return true
+					}
 				}
 			}
 		}

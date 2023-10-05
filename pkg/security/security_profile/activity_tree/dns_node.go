@@ -9,8 +9,6 @@
 package activitytree
 
 import (
-	"strings"
-
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 )
 
@@ -31,17 +29,26 @@ func NewDNSNode(event *model.DNSEvent, rules []*model.MatchedRule, generationTyp
 	}
 }
 
-func dnsFilterSubdomains(name string, maxDepth int) string {
-	tab := strings.Split(name, ".")
-	if len(tab) < maxDepth {
-		return name
-	}
-	result := ""
-	for i := 0; i < maxDepth; i++ {
-		if result != "" {
-			result = "." + result
+func dnsSplit(name string, n int) (string, string) {
+	var (
+		node int
+		i    = len(name) - 1
+	)
+
+	for i != 0 {
+		if name[i] == '.' {
+			node++
 		}
-		result = tab[len(tab)-i-1] + result
+
+		if node >= n {
+			break
+		}
+		i--
 	}
-	return result
+
+	if i == 0 {
+		return name, ""
+	}
+
+	return name[0:i], name[i+1:]
 }
