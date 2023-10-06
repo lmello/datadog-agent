@@ -48,20 +48,20 @@ func (e *Extractor) Extract(event interface{}) (*TraceContext, error) {
 	if err != nil {
 		return nil, err
 	}
-	sp, err := e.propagator.Extract(carrier)
+	sc, err := e.propagator.Extract(carrier)
 	if err != nil {
 		return nil, err
 	}
 	return &TraceContext{
-		TraceID:  sp.TraceID(),
-		ParentID: sp.SpanID(),
-		Priority: getPriority(sp),
+		TraceID:  sc.TraceID(),
+		ParentID: sc.SpanID(),
+		Priority: getPriority(sc),
 	}, nil
 }
 
-func getPriority(sp ddtrace.SpanContext) (priority int) {
+func getPriority(sc ddtrace.SpanContext) (priority int) {
 	priority = defaultPriority
-	if pc, ok := sp.(interface{ SamplingPriority() (int, bool) }); ok {
+	if pc, ok := sc.(interface{ SamplingPriority() (int, bool) }); ok {
 		if p, ok := pc.SamplingPriority(); ok {
 			priority = p
 		}
