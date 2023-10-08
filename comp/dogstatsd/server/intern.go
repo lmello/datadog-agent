@@ -7,6 +7,7 @@ package server
 
 import (
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
@@ -41,6 +42,7 @@ func (v *StringValue) Get() string {
 // stringInterner interns strings while allowing them to be cleaned up by the GC.
 // It can handle both string and []byte types without allocation.
 type stringInterner struct {
+	mu         sync.Mutex
 	tlmEnabled bool
 	valMap     map[string]uintptr
 }
@@ -66,6 +68,9 @@ func newStringInterner() *stringInterner {
 //
 //go:nocheckptr
 func (s *stringInterner) LoadOrStore(k []byte) *StringValue {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	var v *StringValue
 	// the compiler will optimize the following map lookup to not alloc a string
 	if addr, ok := s.valMap[string(k)]; ok {
@@ -86,6 +91,8 @@ func (s *stringInterner) LoadOrStore(k []byte) *StringValue {
 }
 
 func (s *stringInterner) finalize(v *StringValue) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if v.resurrected {
 		// We lost the race. Somebody resurrected it while we
 		// were about to finalize it. Try again next round.
