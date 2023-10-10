@@ -11,9 +11,11 @@ import (
 	"context"
 	"os"
 
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/collector/runner"
 	"github.com/DataDog/datadog-agent/pkg/compliance"
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -29,9 +31,9 @@ const (
 	intakeTrackType = "compliance"
 )
 
-func runCompliance(ctx context.Context, apiCl *apiserver.APIClient, isLeader func() bool) error {
+func runCompliance(ctx context.Context, senderManager sender.SenderManager, apiCl *apiserver.APIClient, isLeader func() bool) error {
 	stopper := startstop.NewSerialStopper()
-	if err := startCompliance(stopper, apiCl, isLeader); err != nil {
+	if err := startCompliance(senderManager, stopper, apiCl, isLeader); err != nil {
 		return err
 	}
 
@@ -70,7 +72,7 @@ func newLogContextCompliance() (*config.Endpoints, *client.DestinationsContext, 
 	return newLogContext(logsConfigComplianceKeys, "cspm-intake.")
 }
 
-func startCompliance(stopper startstop.Stopper, apiCl *apiserver.APIClient, isLeader func() bool) error {
+func startCompliance(senderManager sender.SenderManager, stopper startstop.Stopper, apiCl *apiserver.APIClient, isLeader func() bool) error {
 	endpoints, ctx, err := newLogContextCompliance()
 	if err != nil {
 		log.Error(err)
@@ -86,7 +88,7 @@ func startCompliance(stopper startstop.Stopper, apiCl *apiserver.APIClient, isLe
 		return err
 	}
 
-	runner := runner.NewRunner()
+	runner := runner.NewRunner(senderManager)
 	stopper.Add(runner)
 
 	hname, err := hostname.Get(context.TODO())
@@ -94,7 +96,7 @@ func startCompliance(stopper startstop.Stopper, apiCl *apiserver.APIClient, isLe
 		return err
 	}
 
-	agent := compliance.NewAgent(compliance.AgentOptions{
+	agent := compliance.NewAgent(senderManager, compliance.AgentOptions{
 		ConfigDir:     configDir,
 		Reporter:      reporter,
 		CheckInterval: checkInterval,
@@ -106,7 +108,7 @@ func startCompliance(stopper startstop.Stopper, apiCl *apiserver.APIClient, isLe
 			HostRoot:           os.Getenv("HOST_ROOT"),
 			DockerProvider:     compliance.DefaultDockerProvider,
 			LinuxAuditProvider: compliance.DefaultLinuxAuditProvider,
-			KubernetesProvider: wrapKubernetesClient(apiCl.DynamicCl, isLeader),
+			KubernetesProvider: wrapKubernetesClient(apiCl, isLeader),
 		},
 	})
 	err = agent.Start()
@@ -119,11 +121,11 @@ func startCompliance(stopper startstop.Stopper, apiCl *apiserver.APIClient, isLe
 	return nil
 }
 
-func wrapKubernetesClient(client dynamic.Interface, isLeader func() bool) compliance.KubernetesProvider {
-	return func(ctx context.Context) (dynamic.Interface, error) {
+func wrapKubernetesClient(apiCl *apiserver.APIClient, isLeader func() bool) compliance.KubernetesProvider {
+	return func(ctx context.Context) (dynamic.Interface, discovery.DiscoveryInterface, error) {
 		if isLeader() {
-			return client, nil
+			return apiCl.DynamicCl, apiCl.DiscoveryCl, nil
 		}
-		return nil, compliance.ErrIncompatibleEnvironment
+		return nil, nil, compliance.ErrIncompatibleEnvironment
 	}
 }

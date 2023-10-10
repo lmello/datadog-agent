@@ -65,6 +65,15 @@ var Spec = &protocols.ProtocolSpec{
 		{
 			Name: http2IterationsTable,
 		},
+		{
+			Name: "http2_headers_to_process",
+		},
+		{
+			Name: "http2_stream_heap",
+		},
+		{
+			Name: "http2_ctx_heap",
+		},
 	},
 	TailCalls: []manager.TailCallRoute{
 		{
@@ -105,6 +114,10 @@ func (p *protocol) Name() string {
 	return "HTTP2"
 }
 
+const (
+	mapSizeValue = 1024
+)
+
 // ConfigureOptions add the necessary options for http2 monitoring to work,
 // to be used by the manager. These are:
 // - Set the `http2_in_flight` map size to the value of the `max_tracked_connection` configuration variable.
@@ -112,19 +125,20 @@ func (p *protocol) Name() string {
 // We also configure the http2 event stream with the manager and its options.
 func (p *protocol) ConfigureOptions(mgr *manager.Manager, opts *manager.Options) {
 	opts.MapSpecEditors[inFlightMap] = manager.MapSpecEditor{
-		MaxEntries: p.cfg.MaxTrackedConnections,
+		MaxEntries: p.cfg.MaxUSMConcurrentRequests,
 		EditorFlag: manager.EditMaxEntries,
 	}
+
 	opts.MapSpecEditors[dynamicTable] = manager.MapSpecEditor{
-		MaxEntries: p.cfg.MaxTrackedConnections,
+		MaxEntries: mapSizeValue,
 		EditorFlag: manager.EditMaxEntries,
 	}
 	opts.MapSpecEditors[dynamicTableCounter] = manager.MapSpecEditor{
-		MaxEntries: p.cfg.MaxTrackedConnections,
+		MaxEntries: mapSizeValue,
 		EditorFlag: manager.EditMaxEntries,
 	}
 	opts.MapSpecEditors[http2IterationsTable] = manager.MapSpecEditor{
-		MaxEntries: p.cfg.MaxTrackedConnections,
+		MaxEntries: mapSizeValue,
 		EditorFlag: manager.EditMaxEntries,
 	}
 
@@ -172,7 +186,7 @@ func (p *protocol) DumpMaps(output *strings.Builder, mapName string, currentMap 
 		output.WriteString("Map: '" + mapName + "', key: 'ConnTuple', value: 'httpTX'\n")
 		iter := currentMap.Iterate()
 		var key netebpf.ConnTuple
-		var value http.Transaction
+		var value EbpfTx
 		for iter.Next(unsafe.Pointer(&key), unsafe.Pointer(&value)) {
 			output.WriteString(spew.Sdump(key, value))
 		}
