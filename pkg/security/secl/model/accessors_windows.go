@@ -10,10 +10,9 @@
 package model
 
 import (
+	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"net"
 	"reflect"
-
-	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 )
 
 // Aliases used to avoid compilation error in case of unused imported package
@@ -861,6 +860,15 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: eval.FunctionWeight,
 		}, nil
+	case "timestamp":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) time.Time {
+				ev := ctx.Event.(*Event)
+				return ev.FieldHandlers.ResolveEventTime(ev, &ev.BaseEvent)
+			},
+			Field:  field,
+			Weight: eval.HandlerWeight,
+		}, nil
 	}
 	return nil, &eval.ErrFieldNotFound{Field: field}
 }
@@ -939,6 +947,7 @@ func (ev *Event) GetFields() []eval.Field {
 		"process.pid",
 		"process.ppid",
 		"process.tid",
+		"timestamp",
 	}
 }
 func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
@@ -1180,58 +1189,28 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "process.file.path.length":
 		return ev.FieldHandlers.ResolveFilePath(ev, &ev.BaseEvent.ProcessContext.Process.FileEvent), nil
 	case "process.parent.cmdline":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return "", &eval.ErrNotSupported{Field: field}
-		}
 		return ev.BaseEvent.ProcessContext.Parent.CmdLine, nil
 	case "process.parent.container.id":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return "", &eval.ErrNotSupported{Field: field}
-		}
 		return ev.BaseEvent.ProcessContext.Parent.ContainerID, nil
 	case "process.parent.created_at":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return 0, &eval.ErrNotSupported{Field: field}
-		}
 		return int(ev.FieldHandlers.ResolveProcessCreatedAt(ev, ev.BaseEvent.ProcessContext.Parent)), nil
 	case "process.parent.envp":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return []string{}, &eval.ErrNotSupported{Field: field}
-		}
 		return ev.FieldHandlers.ResolveProcessEnvp(ev, ev.BaseEvent.ProcessContext.Parent), nil
 	case "process.parent.envs":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return []string{}, &eval.ErrNotSupported{Field: field}
-		}
 		return ev.FieldHandlers.ResolveProcessEnvs(ev, ev.BaseEvent.ProcessContext.Parent), nil
 	case "process.parent.file.name":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return "", &eval.ErrNotSupported{Field: field}
-		}
 		return ev.FieldHandlers.ResolveFileBasename(ev, &ev.BaseEvent.ProcessContext.Parent.FileEvent), nil
 	case "process.parent.file.name.length":
 		return ev.FieldHandlers.ResolveFileBasename(ev, &ev.BaseEvent.ProcessContext.Parent.FileEvent), nil
 	case "process.parent.file.path":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return "", &eval.ErrNotSupported{Field: field}
-		}
 		return ev.FieldHandlers.ResolveFilePath(ev, &ev.BaseEvent.ProcessContext.Parent.FileEvent), nil
 	case "process.parent.file.path.length":
 		return ev.FieldHandlers.ResolveFilePath(ev, &ev.BaseEvent.ProcessContext.Parent.FileEvent), nil
 	case "process.parent.pid":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return 0, &eval.ErrNotSupported{Field: field}
-		}
 		return int(ev.BaseEvent.ProcessContext.Parent.PIDContext.Pid), nil
 	case "process.parent.ppid":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return 0, &eval.ErrNotSupported{Field: field}
-		}
 		return int(ev.BaseEvent.ProcessContext.Parent.PPid), nil
 	case "process.parent.tid":
-		if !ev.BaseEvent.ProcessContext.HasParent() {
-			return 0, &eval.ErrNotSupported{Field: field}
-		}
 		return int(ev.BaseEvent.ProcessContext.Parent.PIDContext.Tid), nil
 	case "process.pid":
 		return int(ev.BaseEvent.ProcessContext.Process.PIDContext.Pid), nil
@@ -1239,6 +1218,7 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return int(ev.BaseEvent.ProcessContext.Process.PPid), nil
 	case "process.tid":
 		return int(ev.BaseEvent.ProcessContext.Process.PIDContext.Tid), nil
+	case "timestamp":
 	}
 	return nil, &eval.ErrFieldNotFound{Field: field}
 }
@@ -1389,6 +1369,8 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "process.ppid":
 		return "*", nil
 	case "process.tid":
+		return "*", nil
+	case "timestamp":
 		return "*", nil
 	}
 	return "", &eval.ErrFieldNotFound{Field: field}
@@ -1541,6 +1523,7 @@ func (ev *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "process.tid":
 		return reflect.Int, nil
+	case "timestamp":
 	}
 	return reflect.Invalid, &eval.ErrFieldNotFound{Field: field}
 }
@@ -2301,6 +2284,7 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		ev.BaseEvent.ProcessContext.Process.PIDContext.Tid = uint32(rv)
 		return nil
+	case "timestamp":
 	}
 	return &eval.ErrFieldNotFound{Field: field}
 }

@@ -46,6 +46,7 @@ func (ev *Event) resolveFields(forADs bool) {
 	if ev.BaseEvent.ProcessContext.HasParent() {
 		_ = ev.FieldHandlers.ResolveFilePath(ev, &ev.BaseEvent.ProcessContext.Parent.FileEvent)
 	}
+	_ = ev.FieldHandlers.ResolveEventTime(ev, &ev.BaseEvent)
 	// resolve event specific fields
 	switch ev.GetEventType().String() {
 	case "dns":
@@ -68,6 +69,7 @@ type FieldHandlers interface {
 	ResolveContainerCreatedAt(ev *Event, e *ContainerContext) int
 	ResolveContainerID(ev *Event, e *ContainerContext) string
 	ResolveContainerTags(ev *Event, e *ContainerContext) []string
+	ResolveEventTime(ev *Event, e *BaseEvent) time.Time
 	ResolveEventTimestamp(ev *Event, e *BaseEvent) int
 	ResolveFileBasename(ev *Event, e *FileEvent) string
 	ResolveFilePath(ev *Event, e *FileEvent) string
@@ -87,6 +89,9 @@ func (dfh *DefaultFieldHandlers) ResolveContainerID(ev *Event, e *ContainerConte
 }
 func (dfh *DefaultFieldHandlers) ResolveContainerTags(ev *Event, e *ContainerContext) []string {
 	return e.Tags
+}
+func (dfh *DefaultFieldHandlers) ResolveEventTime(ev *Event, e *BaseEvent) time.Time {
+	return e.Timestamp
 }
 func (dfh *DefaultFieldHandlers) ResolveEventTimestamp(ev *Event, e *BaseEvent) int {
 	return int(e.TimestampRaw)
