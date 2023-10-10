@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
+	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ type uintItem struct {
 	asStr  string
 }
 type intItem struct {
-	asInt int
+	asInt sampler.SamplingPriority
 	asStr string
 }
 type context struct {

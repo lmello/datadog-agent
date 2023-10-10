@@ -3,12 +3,13 @@ package propagation
 import (
 	"errors"
 
+	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
 	"github.com/aws/aws-lambda-go/events"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
-const defaultPriority int = 0
+const defaultPriority sampler.SamplingPriority = 0
 
 type Extractor struct {
 	propagator tracer.Propagator
@@ -17,7 +18,7 @@ type Extractor struct {
 type TraceContext struct {
 	TraceID  uint64
 	ParentID uint64
-	Priority int
+	Priority sampler.SamplingPriority
 }
 
 func NewExtractor() Extractor {
@@ -59,11 +60,11 @@ func (e *Extractor) Extract(event interface{}) (*TraceContext, error) {
 	}, nil
 }
 
-func getPriority(sc ddtrace.SpanContext) (priority int) {
+func getPriority(sc ddtrace.SpanContext) (priority sampler.SamplingPriority) {
 	priority = defaultPriority
 	if pc, ok := sc.(interface{ SamplingPriority() (int, bool) }); ok {
 		if p, ok := pc.SamplingPriority(); ok {
-			priority = p
+			priority = sampler.SamplingPriority(p)
 		}
 	}
 	return
