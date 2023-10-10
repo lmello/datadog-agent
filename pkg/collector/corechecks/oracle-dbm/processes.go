@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/oracle-dbm/common"
 )
 
-const PGA_QUERY = `SELECT 
+const pgaQuery12 = `SELECT 
 	c.name as pdb_name, 
 	p.pid as pid, p.program as server_process,
 	s.sid as sid, s.username as username, s.program as program, s.machine as machine, s.osuser as osuser,
@@ -38,6 +38,15 @@ type sessionTagColumns struct {
 	OsUser   sql.NullString `db:"OSUSER"`
 }
 
+const pgaQuery11 = `SELECT  
+	pid, 
+	program, 
+	nvl(pga_used_mem,0) pga_used_mem, 
+	nvl(pga_alloc_mem,0) pga_alloc_mem, 
+	nvl(pga_freeable_mem,0) pga_freeable_mem, 
+	nvl(pga_max_mem,0) pga_max_mem
+  FROM v$process p`
+
 type ProcessesRowDB struct {
 	PdbName        sql.NullString `db:"PDB_NAME"`
 	PID            uint64         `db:"PID"`
@@ -55,7 +64,14 @@ type ProcessesRowDB struct {
 
 func (c *Check) ProcessMemory() error {
 	rows := []ProcessesRowDB{}
-	err := selectWrapper(c, &rows, PGA_QUERY)
+
+	var pgaQuery string
+	if isDbVersionGreaterOrEqualThan(c, minMultitenantVersion) {
+		pgaQuery = pgaQuery12
+	} else {
+		pgaQuery = pgaQuery11
+	}
+	err := selectWrapper(c, &rows, pgaQuery)
 	if err != nil {
 		return fmt.Errorf("failed to collect processes info: %w", err)
 	}
