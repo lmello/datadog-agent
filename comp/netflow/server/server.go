@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/ndmtmp/forwarder"
 	"github.com/DataDog/datadog-agent/comp/ndmtmp/sender"
+	"github.com/DataDog/datadog-agent/comp/netflow/common"
 	nfconfig "github.com/DataDog/datadog-agent/comp/netflow/config"
 	"github.com/DataDog/datadog-agent/comp/netflow/flowaggregator"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -87,14 +88,18 @@ func (s *Server) Start() error {
 	s.logger.Debugf("NetFlow Server configs (aggregator_buffer_size=%d, aggregator_flush_interval=%d, aggregator_flow_context_ttl=%d)", s.config.AggregatorBufferSize, s.config.AggregatorFlushInterval, s.config.AggregatorFlowContextTTL)
 	for _, listenerConfig := range s.config.Listeners {
 		s.logger.Infof("Starting Netflow listener for flow type %s on %s", listenerConfig.FlowType, listenerConfig.Addr())
-		listener, err := startFlowListener(listenerConfig, s.FlowAgg, s.logger)
+		listener, _, err := startFlowListener(listenerConfig, s.FlowAgg, s.logger)
 		if err != nil {
 			s.logger.Warnf("Error starting listener for config (flow_type:%s, bind_Host:%s, port:%d): %s", listenerConfig.FlowType, listenerConfig.BindHost, listenerConfig.Port, err)
 			continue
 		}
 		s.listeners = append(s.listeners, listener)
 	}
+
+	common.PrintAllFlowDataInstances()
+
 	return nil
+
 }
 
 // Stop stops the Server.

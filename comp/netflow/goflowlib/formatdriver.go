@@ -16,14 +16,20 @@ import (
 // AggregatorFormatDriver is used as goflow formatter to forward flow data to aggregator/EP Forwarder
 type AggregatorFormatDriver struct {
 	namespace string
+	port      uint16
 	flowAggIn chan *common.Flow
+	FlowCount map[uint16]int
 }
 
+var FlowCountUpdateChan = make(chan common.FlowCountUpdate)
+
 // NewAggregatorFormatDriver returns a new AggregatorFormatDriver
-func NewAggregatorFormatDriver(flowAgg chan *common.Flow, namespace string) *AggregatorFormatDriver {
+func NewAggregatorFormatDriver(flowAgg chan *common.Flow, namespace string, port uint16, flowCount map[uint16]int) *AggregatorFormatDriver {
 	return &AggregatorFormatDriver{
 		namespace: namespace,
+		port:      port,
 		flowAggIn: flowAgg,
+		FlowCount: flowCount,
 	}
 }
 
@@ -43,6 +49,9 @@ func (d *AggregatorFormatDriver) Format(data interface{}) ([]byte, []byte, error
 	if !ok {
 		return nil, nil, fmt.Errorf("message is not flowpb.FlowMessage")
 	}
+	// Log the received flow packet
+	fmt.Printf("Received Flow Packet: %+v\n", flow)
 	d.flowAggIn <- ConvertFlow(flow, d.namespace)
+	FlowCountUpdateChan <- common.FlowCountUpdate{Port: int(d.port), Count: 1}
 	return nil, nil, nil
 }

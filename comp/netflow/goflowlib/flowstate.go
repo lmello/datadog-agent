@@ -24,9 +24,10 @@ const reusePort = false
 
 // FlowStateWrapper is a wrapper for StateNetFlow/StateSFlow/StateNFLegacy to provide additional info like hostname/port
 type FlowStateWrapper struct {
-	State    FlowRunnableState
-	Hostname string
-	Port     uint16
+	State     FlowRunnableState
+	Hostname  string
+	Port      uint16
+	FlowCount map[uint16]int
 }
 
 // FlowRunnableState provides common interface for StateNetFlow/StateSFlow/StateNFLegacy/etc
@@ -42,7 +43,10 @@ type FlowRunnableState interface {
 func StartFlowRoutine(flowType common.FlowType, hostname string, port uint16, workers int, namespace string, flowInChan chan *common.Flow, logger log.Component) (*FlowStateWrapper, error) {
 	var flowState FlowRunnableState
 
-	formatDriver := NewAggregatorFormatDriver(flowInChan, namespace)
+	// Create the flowCount map
+	flowCount := make(map[uint16]int)
+
+	formatDriver := NewAggregatorFormatDriver(flowInChan, namespace, port, flowCount)
 	logrusLogger := GetLogrusLevel(logger)
 	ctx := context.Background()
 
@@ -80,9 +84,10 @@ func StartFlowRoutine(flowType common.FlowType, hostname string, port uint16, wo
 		}
 	}()
 	return &FlowStateWrapper{
-		State:    flowState,
-		Hostname: hostname,
-		Port:     port,
+		State:     flowState,
+		Hostname:  hostname,
+		Port:      port,
+		FlowCount: flowCount,
 	}, nil
 }
 
