@@ -195,6 +195,7 @@ func (cb *CollectorBundle) importCollectorsFromCheckConfig() bool {
 	for _, c := range cb.check.instance.Collectors {
 		cb.addCollectorFromConfig(c, false)
 	}
+	cb.enableCRDCollector()
 	return true
 }
 
@@ -226,7 +227,12 @@ func (cb *CollectorBundle) importCollectorsFromDiscovery() bool {
 		return false
 	}
 
-	collectors, err := discovery.NewAPIServerDiscoveryProvider().Discover(cb.inventory)
+	unstableCollectorAllowList := []string{}
+	if cb.check.orchestratorConfig.IsCRDCollectionEnabled {
+		unstableCollectorAllowList = []string{"customresourcedefinitions"}
+	}
+
+	collectors, err := discovery.NewAPIServerDiscoveryProvider().WithUnstableCollectorAllowList(unstableCollectorAllowList).Discover(cb.inventory)
 	if err != nil {
 		_ = cb.check.Warnf("Collector discovery failed: %s", err)
 		return false
@@ -245,6 +251,7 @@ func (cb *CollectorBundle) importCollectorsFromDiscovery() bool {
 // stable collectors with default versions.
 func (cb *CollectorBundle) importCollectorsFromInventory() {
 	cb.collectors = cb.inventory.StableCollectors()
+	cb.enableCRDCollector()
 }
 
 // prepareExtraSyncTimeout initializes the bundle extra sync timeout.
@@ -364,4 +371,21 @@ func (cb *CollectorBundle) skipResources(groupVersion, resource string) bool {
 		return true
 	}
 	return false
+}
+
+func (cb *CollectorBundle) enableCRDCollector() {
+	if !cb.check.orchestratorConfig.IsCRDCollectionEnabled {
+		return
+	}
+
+	crdCollector, err := cb.inventory.CollectorForDefaultVersion("customresourcedefinitions")
+	if err != nil {
+		return
+	}
+
+	if _, ok := cb.activatedCollectors[crdCollector.Metadata().FullName()]; !ok {
+		cb.collectors = append(cb.collectors, crdCollector)
+		cb.activatedCollectors[crdCollector.Metadata().FullName()] = struct{}{}
+	}
+
 }

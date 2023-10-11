@@ -29,8 +29,9 @@ const (
 // APIServerDiscoveryProvider is a discovery provider that uses the Kubernetes
 // API Server as its data source.
 type APIServerDiscoveryProvider struct {
-	result []collectors.Collector
-	seen   map[string]struct{}
+	result                     []collectors.Collector
+	seen                       map[string]struct{}
+	unstableCollectorAllowList []string
 }
 
 // NewAPIServerDiscoveryProvider returns a new instance of the APIServer
@@ -39,6 +40,12 @@ func NewAPIServerDiscoveryProvider() *APIServerDiscoveryProvider {
 	return &APIServerDiscoveryProvider{
 		seen: make(map[string]struct{}),
 	}
+}
+
+// WithUnstableCollectorAllowList allows APIServerDiscoveryProvider to add unstable collectors.
+func (p *APIServerDiscoveryProvider) WithUnstableCollectorAllowList(unstableCollectorAllowList []string) *APIServerDiscoveryProvider {
+	p.unstableCollectorAllowList = unstableCollectorAllowList
+	return p
 }
 
 // Discover returns collectors to enable based on information exposed by the API server.
@@ -110,7 +117,7 @@ func (p *APIServerDiscoveryProvider) walkAPIResources(inventory *inventory.Colle
 			}
 
 			// Ignore unstable collectors.
-			if !collector.Metadata().IsStable {
+			if !collector.Metadata().IsStable && !p.isInUnstableCollectorAllowList(collector) {
 				continue
 			}
 
@@ -123,6 +130,14 @@ func (p *APIServerDiscoveryProvider) walkAPIResources(inventory *inventory.Colle
 			p.addCollector(collector)
 		}
 	}
+}
+func (p *APIServerDiscoveryProvider) isInUnstableCollectorAllowList(collector collectors.Collector) bool {
+	for _, c := range p.unstableCollectorAllowList {
+		if c == collector.Metadata().Name {
+			return true
+		}
+	}
+	return false
 }
 
 // identifyResources is used to arrange resources into two groups: those that

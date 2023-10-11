@@ -1114,6 +1114,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("orchestrator_explorer.manifest_collection.buffer_manifest", true)
 	config.BindEnvAndSetDefault("orchestrator_explorer.manifest_collection.buffer_flush_interval", 20*time.Second)
 	config.BindEnvAndSetDefault("orchestrator_explorer.run_on_node_agent", false)
+	config.BindEnvAndSetDefault("orchestrator_explorer.crd_collection.enabled", true)
 
 	// Container lifecycle configuration
 	config.BindEnvAndSetDefault("container_lifecycle.enabled", false)
