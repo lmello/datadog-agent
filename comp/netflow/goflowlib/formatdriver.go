@@ -49,8 +49,6 @@ func (d *AggregatorFormatDriver) Format(data interface{}) ([]byte, []byte, error
 	if !ok {
 		return nil, nil, fmt.Errorf("message is not flowpb.FlowMessage")
 	}
-	// Log the received flow packet
-	fmt.Printf("Received Flow Packet: %+v\n", flow)
 	d.flowAggIn <- ConvertFlow(flow, d.namespace)
 	FlowCountUpdateChan <- common.FlowCountUpdate{Port: int(d.port), Count: 1}
 	return nil, nil, nil
