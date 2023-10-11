@@ -6,6 +6,8 @@
     !reference [ .on_system_probe_changes_or_manual ]
   stage: kernel_matrix_testing
   script:
+    # use cache to prevent unnecessary downloading
+    - if [ -d "$KITCHEN_DOCKERS" ]; then find $KITCHEN_DOCKERS -maxdepth 1 -type f -exec docker load -i {} \;; fi
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
@@ -16,6 +18,12 @@
     expire_in: 1 day
     paths:
       - $KITCHEN_DOCKERS
+  cache:
+    - key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+      fallback_keys:
+        - "$CI_JOB_NAME-$CI_DEFAULT_BRANCH"
+      paths:
+        - $KITCHEN_DOCKERS
   variables:
     KITCHEN_DOCKERS: $DD_AGENT_TESTING_DIR/kitchen-dockers-$ARCH
 
