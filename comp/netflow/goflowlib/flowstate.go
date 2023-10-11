@@ -81,6 +81,7 @@ func StartFlowRoutine(flowType common.FlowType, hostname string, port uint16, wo
 		err := flowState.FlowRoutine(workers, hostname, int(port), reusePort)
 		if err != nil {
 			logger.Errorf("Error listening to %s: %s", flowType, err)
+			common.UpdateErrorByPort(int(port), err)
 		}
 	}()
 	return &FlowStateWrapper{

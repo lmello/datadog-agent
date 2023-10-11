@@ -43,6 +43,7 @@ func startFlowListener(listenerConfig config.ListenerConfig, flowAgg *flowaggreg
 			flowCount += update.Count
 			common.UpdateFlowCountByPort(update.Port, flowCount)
 			common.PrintAllFlowDataInstances()
+
 		}
 	}()
 
@@ -52,6 +53,7 @@ func startFlowListener(listenerConfig config.ListenerConfig, flowAgg *flowaggreg
 		Port:      portTypeInt,
 		Workers:   listenerConfig.Workers,
 		Namespace: listenerConfig.Namespace,
+		Error:     err,
 	}
 
 	common.AddFlowDataInstance(flowData)

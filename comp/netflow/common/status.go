@@ -71,6 +71,16 @@ func GetTotalFlowCount() int {
 	return totalCount
 }
 
+func UpdateErrorByPort(port int, err error) {
+	for _, flowData := range flowDataInstances {
+		if flowData.Port == port {
+			flowData.Error = err
+			fmt.Println("Updated error for port:", port, "Error:", err)
+			return
+		}
+	}
+}
+
 func PrintAllFlowDataInstances() {
 	fmt.Println("------------------------")
 	fmt.Println()
@@ -81,7 +91,7 @@ func PrintAllFlowDataInstances() {
 	fmt.Println()
 	numListeners := GetNumListeners()
 	if numListeners > 0 {
-		fmt.Printf("Listeners Opened: %d\n", numListeners)
+		fmt.Printf("Listeners Successfully Opened: %d\n", numListeners)
 	}
 	fmt.Println()
 
@@ -100,7 +110,9 @@ func PrintAllFlowDataInstances() {
 		fmt.Printf("Workers: %d\n", flowData.Workers)
 		fmt.Printf("Namespace: %s\n", flowData.Namespace)
 		fmt.Printf("Packet Count: %d\n", flowData.FlowCount)
+		if flowData.Error != nil {
+			fmt.Printf("Error: %s\n", flowData.Error.Error())
+		}
 		fmt.Println()
 	}
-
 }
