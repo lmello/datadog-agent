@@ -11,26 +11,23 @@ type FlowListenerData struct {
 	Workers   int
 	Namespace string
 	FlowCount int
+	Error     error
 }
 
 type FlowCountUpdate struct {
-	Port  int // Port to update the flow count for
-	Count int // Count to add to the flow count
+	Port  int
+	Count int
 }
 
 var flowDataInstances []*FlowListenerData
 
-// GetFlowDataInstance returns the singleton instance of FlowListenerData.
 func AddFlowDataInstance(flowData FlowListenerData) {
-	// Check if a flow data instance with the same Port already exists
 	for _, existingFlowData := range flowDataInstances {
 		if existingFlowData.Port == flowData.Port {
-			// Update the existing flow data instance with the new data
 			existingFlowData.FlowType = flowData.FlowType
 			existingFlowData.BindHost = flowData.BindHost
 			existingFlowData.Workers = flowData.Workers
 			existingFlowData.Namespace = flowData.Namespace
-			// You can also update other fields if needed
 			return
 		}
 	}
