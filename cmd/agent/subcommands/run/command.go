@@ -54,6 +54,7 @@ import (
 	logsAgent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/comp/metadata"
 	"github.com/DataDog/datadog-agent/comp/metadata/host"
+	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent"
 	"github.com/DataDog/datadog-agent/comp/metadata/runner"
 	"github.com/DataDog/datadog-agent/comp/ndmtmp"
 	"github.com/DataDog/datadog-agent/comp/netflow"
@@ -194,6 +195,7 @@ func commonRun(log log.Component,
 	logsAgent util.Optional[logsAgent.Component],
 	otelcollector otelcollector.Component,
 	hostMetadata host.Component,
+	invAgent inventoryagent.Component,
 ) error {
 	defer func() {
 		stopAgent(cliParams, server)
@@ -235,7 +237,7 @@ func commonRun(log log.Component,
 		}
 	}()
 
-	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, otelcollector, hostMetadata); err != nil {
+	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, otelcollector, hostMetadata, invAgent); err != nil {
 		return err
 	}
 
@@ -325,6 +327,7 @@ func startAgent(
 	sharedSerializer serializer.MetricSerializer,
 	otelcollector otelcollector.Component,
 	hostMetadata host.Component,
+	invAgent inventoryagent.Component,
 ) error {
 
 	var err error
@@ -463,7 +466,17 @@ func startAgent(
 	}
 
 	// start the cmd HTTP server
-	if err = api.StartServer(configService, flare, server, capture, serverDebug, logsAgent, aggregator.GetSenderManager(), hostMetadata); err != nil {
+	if err = api.StartServer(
+		configService,
+		flare,
+		server,
+		capture,
+		serverDebug,
+		logsAgent,
+		aggregator.GetSenderManager(),
+		hostMetadata,
+		invAgent,
+	); err != nil {
 		return log.Errorf("Error while starting api server, exiting: %v", err)
 	}
 
