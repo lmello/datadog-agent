@@ -10,13 +10,6 @@ import (
 	"strings"
 )
 
-// LanguageSetInterface is an interface defining the behaviour of a language set
-type LanguageSetInterface interface {
-	Add(languageName string)
-	Parse(languages string)
-	String() string
-}
-
 // LanguageSet is a set of languages
 type LanguageSet struct {
 	languages map[string]struct{}
@@ -31,23 +24,22 @@ func NewLanguageSet() *LanguageSet {
 
 // Add adds a new language to the language set
 func (langSet *LanguageSet) Add(languageName string) {
-	if langSet.languages == nil {
-		langSet.languages = make(map[string]struct{})
-	}
-
 	langSet.languages[languageName] = struct{}{}
 }
 
 // Parse parses a comma-separated languages string and adds the languages to the language set
 func (langSet *LanguageSet) Parse(languages string) {
-	if langSet.languages == nil {
-		langSet.languages = map[string]struct{}{}
-	}
-
 	for _, languageName := range strings.Split(languages, ",") {
 		if languageName != "" {
 			langSet.Add(languageName)
 		}
+	}
+}
+
+// Merge merges a set of languages with the current languages set
+func (langSet *LanguageSet) Merge(languages LanguageSet) {
+	for languageName := range languages.languages {
+		langSet.Add(languageName)
 	}
 }
 

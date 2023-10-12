@@ -12,13 +12,6 @@ import (
 
 var re = regexp.MustCompile(`apm\.datadoghq\.com\/(init)?\.?(.+?)\.languages`)
 
-// ContainersLanguagesInterface is an interface defining the behavior of mapping containers to language sets
-type ContainersLanguagesInterface interface {
-	Parse(containerName string, languageNames string)
-	Add(containerName string, languageName string)
-	TotalLanguages() int
-}
-
 // ContainersLanguages implements ContainersLanguagesInterface and maps container name to language set
 type ContainersLanguages struct {
 	Languages map[string]*LanguageSet
@@ -31,26 +24,33 @@ func NewContainersLanguages() *ContainersLanguages {
 	}
 }
 
-// Parse parses a comma-separated string of language names and adds them to the specified container
-func (containerslanguages *ContainersLanguages) Parse(containerName string, languageNames string) {
+// GetOrInitializeLanguageset initializes the language set of a specific container if it doesn't exist, then it returns it
+func (containerslanguages *ContainersLanguages) GetOrInitializeLanguageset(containerName string) *LanguageSet {
 	_, found := containerslanguages.Languages[containerName]
 
 	if !found {
 		containerslanguages.Languages[containerName] = NewLanguageSet()
 	}
 
-	containerslanguages.Languages[containerName].Parse(languageNames)
+	return containerslanguages.Languages[containerName]
+}
+
+// Parse parses a comma-separated string of language names and adds them to the specified container
+func (containerslanguages *ContainersLanguages) Parse(containerName string, languageNames string) {
+	languageset := containerslanguages.GetOrInitializeLanguageset(containerName)
+	languageset.Parse(languageNames)
+}
+
+// AssignLanguages assigns the specified languages to the specified container
+func (containerslanguages *ContainersLanguages) AssignLanguages(containerName string, languages LanguageSet) {
+	languageset := containerslanguages.GetOrInitializeLanguageset(containerName)
+	languageset.Merge(languages)
 }
 
 // Add adds a language to the specified container
 func (containerslanguages *ContainersLanguages) Add(containerName string, languageName string) {
-	_, found := containerslanguages.Languages[containerName]
-
-	if !found {
-		containerslanguages.Languages[containerName] = NewLanguageSet()
-	}
-
-	containerslanguages.Languages[containerName].Add(languageName)
+	languageset := containerslanguages.GetOrInitializeLanguageset(containerName)
+	languageset.Add(languageName)
 }
 
 // TotalLanguages gets the total number of languages that are added to all containers
