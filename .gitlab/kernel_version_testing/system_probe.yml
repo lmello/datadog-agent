@@ -11,17 +11,11 @@
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | crane auth login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
     # Pull base images
     - mkdir -p $KITCHEN_DOCKERS $CI_PROJECT_DIR/crane-cache
-    - inv -e system-probe.save-test-dockers --use-crane --crane-cache-dir $CI_PROJECT_DIR/crane-cache --output-dir $KITCHEN_DOCKERS --arch $ARCH
+    - inv -e system-probe.save-test-dockers --use-crane --output-dir $KITCHEN_DOCKERS --arch $ARCH
   artifacts:
     expire_in: 1 day
     paths:
       - $KITCHEN_DOCKERS
-  cache:
-    - key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
-      fallback_keys:
-        - "$CI_JOB_NAME-$CI_DEFAULT_BRANCH"
-      paths:
-        - crane-cache
   variables:
     KITCHEN_DOCKERS: $DD_AGENT_TESTING_DIR/kitchen-dockers-$ARCH
 
