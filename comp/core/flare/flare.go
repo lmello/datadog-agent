@@ -32,14 +32,14 @@ type dependencies struct {
 	Log       log.Component
 	Config    config.Component
 	Params    Params
-	Providers []types.FlareProvider `group:"flare"`
+	Providers []types.FlareCallback `group:"flare"`
 }
 
 type flare struct {
 	log       log.Component
 	config    config.Component
 	params    Params
-	providers []types.FlareProvider
+	providers []types.FlareCallback
 }
 
 func newFlare(deps dependencies) (Component, rcclient.ListenerProvider, error) {
@@ -109,21 +109,21 @@ func (f *flare) Create(pdata ProfileData, ipcError error) (string, error) {
 		fb.AddFileWithoutScrubbing(filepath.Join("profiles", name), data)
 	}
 
-	// Adding legacy and internal providers. Registering then as FlareProvider through FX create cycle dependencies.
+	// Adding legacy and internal providers. Registering then as Provider through FX create cycle dependencies.
 	providers := append(
 		f.providers,
-		types.FlareProvider{Callback: func(fb types.FlareBuilder) error {
+		func(fb types.FlareBuilder) error {
 			return pkgFlare.CompleteFlare(fb, aggregator.GetSenderManager())
-		}},
-		types.FlareProvider{Callback: f.collectLogsFiles},
-		types.FlareProvider{Callback: f.collectConfigFiles},
+		},
+		f.collectLogsFiles,
+		f.collectConfigFiles,
 	)
 
 	for _, p := range providers {
-		err = p.Callback(fb)
+		err = p(fb)
 		if err != nil {
 			f.log.Errorf("error calling '%s' for flare creation: %s",
-				runtime.FuncForPC(reflect.ValueOf(p.Callback).Pointer()).Name(), // reflect p.Callback function name
+				runtime.FuncForPC(reflect.ValueOf(p).Pointer()).Name(), // reflect p.Callback function name
 				err)
 		}
 	}
