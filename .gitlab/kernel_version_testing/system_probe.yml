@@ -1,12 +1,11 @@
 .pull_test_dockers:
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/docker_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   needs: []
   tags: ["arch:amd64"]
   rules:
     !reference [ .on_system_probe_changes_or_manual ]
   stage: kernel_matrix_testing
   script:
-    - source /root/.bashrc
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | crane auth login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
