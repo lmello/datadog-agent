@@ -1595,10 +1595,29 @@ def print_failed_tests(_, output_dir):
 
 @task
 def save_test_dockers(ctx, output_dir, arch, windows=is_windows, use_crane=False, crane_cache_dir=None):
-    import yaml
-
     if windows:
         return
+
+    images = _test_docker_image_list(ctx)
+    for image in images:
+        output_path = image.translate(str.maketrans('', '', string.punctuation))
+        output_file = f"{os.path.join(output_dir, output_path)}.tar"
+        if use_crane:
+            opts = f"-c {crane_cache_dir}" if crane_cache_dir else ""
+            ctx.run(f"crane pull {opts} --platform linux/{arch} {image} {output_file}")
+        else:
+            ctx.run(f"docker pull --platform linux/{arch} {image}")
+            ctx.run(f"docker save {image} > {output_file}")
+
+
+@task
+def test_docker_image_list(ctx):
+    images = _test_docker_image_list(ctx)
+    print('\n'.join(images))
+
+
+def _test_docker_image_list(ctx) -> set[str]:
+    import yaml
 
     docker_compose_paths = glob.glob("./pkg/network/protocols/**/*/docker-compose.yml", recursive=True)
     # Add relative docker-compose paths
@@ -1619,15 +1638,8 @@ def save_test_dockers(ctx, output_dir, arch, windows=is_windows, use_crane=False
 
     # Special use-case in javatls
     images.remove("${IMAGE_VERSION}")
-    for image in images:
-        output_path = image.translate(str.maketrans('', '', string.punctuation))
-        output_file = f"{os.path.join(output_dir, output_path)}.tar"
-        if use_crane:
-            opts = f"-c {crane_cache_dir}" if crane_cache_dir else ""
-            ctx.run(f"crane pull {opts} --platform linux/{arch} {image} {output_file}")
-        else:
-            ctx.run(f"docker pull --platform linux/{arch} {image}")
-            ctx.run(f"docker save {image} > {output_file}")
+    return images
+
 
 
 @task
