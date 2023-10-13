@@ -313,6 +313,7 @@ static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_s
 }
 
 static __always_inline void parse_frame(struct __sk_buff *skb, skb_info_t *skb_info, conn_tuple_t *tup, http2_ctx_t *http2_ctx, struct http2_frame *current_frame) {
+    log_debug("guy parse frame");
     http2_ctx->http2_stream_key.stream_id = current_frame->stream_id;
     http2_stream_t *current_stream = http2_fetch_stream(&http2_ctx->http2_stream_key);
     if (current_stream == NULL) {
@@ -360,7 +361,7 @@ static __always_inline void skip_preface(struct __sk_buff *skb, skb_info_t *skb_
     }
 }
 
-static __always_inline __u8 find_relevant_headers(struct __sk_buff *skb, skb_info_t *skb_info, http2_frame_with_offset *frames_array) {
+static __always_inline __u8 find_relevant_headers(struct __sk_buff *skb, conn_tuple_t *tup, skb_info_t *skb_info, http2_frame_with_offset *frames_array) {
     bool is_headers_frame, is_data_end_of_stream;
     __u8 interesting_frame_index = 0;
     struct http2_frame current_frame = {};
@@ -383,13 +384,19 @@ static __always_inline __u8 find_relevant_headers(struct __sk_buff *skb, skb_inf
         if (!format_http2_frame_header(&current_frame)) {
             break;
         }
+//        log_debug("guy found header %d; %d;", current_frame.type, current_frame.flags);
+//        log_debug("guy length %ld; skb %ld", current_frame.length, skb->len);
 
         // END_STREAM can appear only in Headers and Data frames.
         // Check out https://datatracker.ietf.org/doc/html/rfc7540#section-6.1 for data frame, and
         // https://datatracker.ietf.org/doc/html/rfc7540#section-6.2 for headers frame.
+        log_debug("guy frame (%d <-> %d); type %d;", tup->sport, tup->dport, current_frame.type);
+        log_debug("guy frame (%d <-> %d); flags %d;", tup->sport, tup->dport, current_frame.flags);
         is_headers_frame = current_frame.type == kHeadersFrame;
         is_data_end_of_stream = ((current_frame.flags & HTTP2_END_OF_STREAM) == HTTP2_END_OF_STREAM) && (current_frame.type == kDataFrame);
         if (is_headers_frame || is_data_end_of_stream) {
+            log_debug("guy found relevant (%d <-> %d); type %d;", tup->sport, tup->dport, current_frame.type);
+            log_debug("guy found relevant (%d <-> %d); flags %d;", tup->sport, tup->dport, current_frame.flags);
             frames_array[interesting_frame_index].frame = current_frame;
             frames_array[interesting_frame_index].offset = skb_info->data_off;
             interesting_frame_index++;
@@ -430,13 +437,30 @@ int socket__http2_filter(struct __sk_buff *skb) {
     // Some functions might change and override fields in dispatcher_args_copy.skb_info. Since it is used as a key
     // in a map, we cannot allow it to be modified. Thus, having a local copy of skb_info.
     skb_info_t local_skb_info = dispatcher_args_copy.skb_info;
+    u32 *offset = bpf_map_lookup_elem(&http2_packet_context, &dispatcher_args_copy.tup);
+    if (offset != NULL) {
+//        log_debug("guy here2; %ld", *offset);
+        local_skb_info.data_off += *offset;
+    }
 
     // filter frames
-    iteration_value.frames_count = find_relevant_headers(skb, &local_skb_info, iteration_value.frames_array);
+    iteration_value.frames_count = find_relevant_headers(skb, &dispatcher_args_copy.tup, &local_skb_info, iteration_value.frames_array);
+    if (local_skb_info.data_off > skb->len) {
+        u32 off_val = local_skb_info.data_off - skb->len;
+//        log_debug("guy reminder %d", off_val);
+        if (offset == NULL) {
+            bpf_map_update_elem(&http2_packet_context, &dispatcher_args_copy.tup, &off_val, BPF_ANY);
+        } else {
+            *offset = off_val;
+        }
+    } else {
+        bpf_map_delete_elem(&http2_packet_context, &dispatcher_args_copy.tup);
+    }
     if (iteration_value.frames_count == 0) {
         return 0;
     }
 
+    log_debug("guy %d frames", iteration_value.frames_count);
     // We have couple of interesting headers, launching tail calls to handle them.
     if (bpf_map_update_elem(&http2_iterations, &dispatcher_args_copy, &iteration_value, BPF_NOEXIST) >= 0) {
         // We managed to cache the iteration_value in the http2_iterations map.
@@ -448,6 +472,8 @@ int socket__http2_filter(struct __sk_buff *skb) {
 
 SEC("socket/http2_frames_parser")
 int socket__http2_frames_parser(struct __sk_buff *skb) {
+    log_debug("guy here");
+
     dispatcher_arguments_t dispatcher_args_copy;
     bpf_memset(&dispatcher_args_copy, 0, sizeof(dispatcher_arguments_t));
     if (!fetch_dispatching_arguments(&dispatcher_args_copy.tup, &dispatcher_args_copy.skb_info)) {
@@ -457,6 +483,10 @@ int socket__http2_frames_parser(struct __sk_buff *skb) {
     // Some functions might change and override fields in dispatcher_args_copy.skb_info. Since it is used as a key
     // in a map, we cannot allow it to be modified. Thus, having a local copy of skb_info.
     skb_info_t local_skb_info = dispatcher_args_copy.skb_info;
+    u32 *offset = bpf_map_lookup_elem(&http2_packet_context, &dispatcher_args_copy.tup);
+    if (offset != NULL) {
+        local_skb_info.data_off += *offset;
+    }
 
     // A single packet can contain multiple HTTP/2 frames, due to instruction limitations we have divided the
     // processing into multiple tail calls, where each tail call process a single frame. We must have context when

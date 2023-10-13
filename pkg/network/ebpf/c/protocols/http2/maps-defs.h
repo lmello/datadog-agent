@@ -3,6 +3,7 @@
 
 // http2_static_table is the map that holding the supported static values by index and its static value.
 BPF_HASH_MAP(http2_static_table, u8, static_table_value_t, 20)
+BPF_HASH_MAP(http2_packet_context, conn_tuple_t, __u32, 1024)
 
 /* http2_dynamic_table is the map that holding the supported dynamic values - the index is the static index and the
    conn tuple and it is value is the buffer which contains the dynamic string. */

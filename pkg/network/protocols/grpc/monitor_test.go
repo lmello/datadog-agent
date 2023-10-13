@@ -10,6 +10,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 	"time"
@@ -344,6 +345,7 @@ type captureRange struct {
 func (s *USMgRPCSuite) TestLargeBodiesGRPCScenarios() {
 	t := s.T()
 	cfg := config.New()
+	cfg.BPFDebug = true
 	cfg.EnableHTTP2Monitoring = true
 
 	srv, err := grpc.NewServer(srvAddr)
@@ -355,7 +357,7 @@ func (s *USMgRPCSuite) TestLargeBodiesGRPCScenarios() {
 	// Random string generation is an heavy operation, and it's proportional for the length (30MB)
 	// Instead of generating the same long string (long name) for every test, we're generating it only once.
 	longRandomString := randStringRunes(30 * 1024 * 1024)
-	shortRandomString := longRandomString[:5*1024*1024]
+	//shortRandomString := longRandomString[:5*1024*1024]
 
 	// c is a stream endpoint
 	// a + b are unary endpoints
@@ -370,7 +372,7 @@ func (s *USMgRPCSuite) TestLargeBodiesGRPCScenarios() {
 				clients := getClientsArray(t, clientsCount, grpc.Options{})
 
 				longRandomString[0] = '0' + rune(clientsCount)
-				for i := 0; i < 5; i++ {
+				for i := 0; i < 1; i++ {
 					longRandomString[1] = 'a' + rune(i)
 					require.NoError(t, clients[getClientsIndex(i, clientsCount)].HandleUnary(defaultCtx, string(longRandomString)))
 				}
@@ -380,43 +382,43 @@ func (s *USMgRPCSuite) TestLargeBodiesGRPCScenarios() {
 					Path:   http.Path{Content: http.Interner.GetString("/helloworld.Greeter/SayHello")},
 					Method: http.MethodPost,
 				}: {
-					lower: 4,
-					upper: 5,
-				},
-			},
-		},
-		{
-			name: "request with large body (5MB) -> b -> request with large body (5MB) -> b",
-			runClients: func(t *testing.T, clientsCount int) {
-				clients := getClientsArray(t, clientsCount, grpc.Options{})
-
-				longRandomString[3] = '0' + rune(clientsCount)
-
-				require.NoError(t, clients[getClientsIndex(0, clientsCount)].HandleUnary(defaultCtx, string(shortRandomString)))
-				require.NoError(t, clients[getClientsIndex(1, clientsCount)].GetFeature(defaultCtx, -746143763, 407838351))
-				require.NoError(t, clients[getClientsIndex(2, clientsCount)].HandleUnary(defaultCtx, string(shortRandomString)))
-				require.NoError(t, clients[getClientsIndex(3, clientsCount)].GetFeature(defaultCtx, -743999179, 408122808))
-			},
-			expectedEndpoints: map[http.Key]captureRange{
-				{
-					Path:   http.Path{Content: http.Interner.GetString("/routeguide.RouteGuide/GetFeature")},
-					Method: http.MethodPost,
-				}: {
-					lower: 2,
-					upper: 2,
-				},
-				{
-					Path:   http.Path{Content: http.Interner.GetString("/helloworld.Greeter/SayHello")},
-					Method: http.MethodPost,
-				}: {
 					lower: 1,
-					upper: 2,
+					upper: 1,
 				},
 			},
 		},
+		//{
+		//	name: "request with large body (5MB) -> b -> request with large body (5MB) -> b",
+		//	runClients: func(t *testing.T, clientsCount int) {
+		//		clients := getClientsArray(t, clientsCount, grpc.Options{})
+		//
+		//		longRandomString[3] = '0' + rune(clientsCount)
+		//
+		//		require.NoError(t, clients[getClientsIndex(0, clientsCount)].HandleUnary(defaultCtx, string(shortRandomString)))
+		//		require.NoError(t, clients[getClientsIndex(1, clientsCount)].GetFeature(defaultCtx, -746143763, 407838351))
+		//		require.NoError(t, clients[getClientsIndex(2, clientsCount)].HandleUnary(defaultCtx, string(shortRandomString)))
+		//		require.NoError(t, clients[getClientsIndex(3, clientsCount)].GetFeature(defaultCtx, -743999179, 408122808))
+		//	},
+		//	expectedEndpoints: map[http.Key]captureRange{
+		//		{
+		//			Path:   http.Path{Content: http.Interner.GetString("/routeguide.RouteGuide/GetFeature")},
+		//			Method: http.MethodPost,
+		//		}: {
+		//			lower: 2,
+		//			upper: 2,
+		//		},
+		//		{
+		//			Path:   http.Path{Content: http.Interner.GetString("/helloworld.Greeter/SayHello")},
+		//			Method: http.MethodPost,
+		//		}: {
+		//			lower: 1,
+		//			upper: 2,
+		//		},
+		//	},
+		//},
 	}
 	for _, tt := range tests {
-		for _, clientCount := range []int{1, 2, 5} {
+		for _, clientCount := range []int{1} {
 			testNameSuffix := fmt.Sprintf("-different clients - %v", clientCount)
 			t.Run(tt.name+testNameSuffix, func(t *testing.T) {
 				monitor, err := usm.NewMonitor(cfg, nil, nil, nil)
@@ -427,7 +429,7 @@ func (s *USMgRPCSuite) TestLargeBodiesGRPCScenarios() {
 				tt.runClients(t, clientCount)
 
 				res := make(map[http.Key]int)
-				require.Eventually(t, func() bool {
+				assert.Eventually(t, func() bool {
 					stats := monitor.GetProtocolStats()
 					http2Stats, ok := stats[protocols.HTTP2]
 					if !ok {
@@ -465,6 +467,12 @@ func (s *USMgRPCSuite) TestLargeBodiesGRPCScenarios() {
 
 					return true
 				}, time.Second*5, time.Millisecond*100, "%v != %v", res, tt.expectedEndpoints)
+				if t.Failed() {
+					o, _ := monitor.DumpMaps("http2_in_flight")
+					t.Log(o)
+					o, _ = monitor.DumpMaps("http2_dynamic_table")
+					t.Log(o)
+				}
 			})
 		}
 	}

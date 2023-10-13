@@ -8,6 +8,10 @@
 package http2
 
 import (
+	"fmt"
+	"github.com/DataDog/datadog-agent/pkg/process/util"
+	"net"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/http2/hpack"
@@ -131,4 +135,51 @@ func (tx *EbpfTx) String() string {
 	}
 	output.WriteString("}")
 	return output.String()
+}
+
+// SourceAddress returns the source address
+func (t http2StreamKey) SourceAddress() util.Address {
+	return util.V4Address(uint32(t.Tup.Saddr_l))
+}
+
+// SourceEndpoint returns the source address and source port joined
+func (t http2StreamKey) SourceEndpoint() string {
+	return net.JoinHostPort(t.SourceAddress().String(), strconv.Itoa(int(t.Tup.Sport)))
+}
+
+// DestAddress returns the destination address
+func (t http2StreamKey) DestAddress() util.Address {
+	return util.V4Address(uint32(t.Tup.Daddr_l))
+}
+
+// DestEndpoint returns the destination address and source port joined
+func (t http2StreamKey) DestEndpoint() string {
+	return net.JoinHostPort(t.DestAddress().String(), strconv.Itoa(int(t.Tup.Dport)))
+}
+
+func (t http2StreamKey) String() string {
+	return fmt.Sprintf(
+		"[%s ⇄ %s] id %d",
+		t.SourceEndpoint(),
+		t.DestEndpoint(),
+		t.Id,
+	)
+}
+
+func (t http2DynamicTableEntry) String() string {
+	if t.Len == 0 {
+		return ""
+	}
+
+	b := make([]byte, t.Len)
+	for i := uint8(0); i < t.Len; i++ {
+		b[i] = byte(t.Buffer[i])
+	}
+	// trim null byte + after
+	str, err := hpack.HuffmanDecodeToString(b)
+	if err != nil {
+		return ""
+	}
+
+	return str
 }
